@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "baseline",
+      "runtimeExecutable": "/Users/gcr/Projects/baseline-agent/.venv/bin/python",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "api", "--port", "8099"],
+      "port": 8099
+    }
+  ]
+}

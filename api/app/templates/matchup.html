@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% set h = p.header %}
+{% block title %}{{ h.a.short }} vs {{ h.b.short }} — Baseline{% endblock %}
+
+{% macro gauge(g) %}
+  {% set col = 'var(--good)' if g.score < 45 else ('var(--warn)' if g.score < 65 else 'var(--bad)') %}
+  <div class="gauge" style="--v: {{ g.score }}">
+    <div class="top">
+      <span class="score" style="color:{{ col }}">{{ g.score|round|int }}<span class="faint" style="font-size:14px">/100</span></span>
+      <span class="band" style="color:{{ col }}">{{ g.band }}</span>
+    </div>
+    <div class="track"></div>
+    <div class="scale"><span>fresh</span><span>cooked</span></div>
+    <div class="summary">{{ g.summary }}</div>
+    <div class="components">
+      {% for c in g.components %}
+      <div class="comp">
+        <span class="lbl">{{ c.label }}</span>
+        <span class="bar"><span style="width: {{ (c.contribution / 30 * 100)|round(1) }}%"></span></span>
+        <span class="pts">+{{ c.contribution }}</span>
+        <span class="detail">{{ c.detail }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<a class="back" href="/">← All matchups</a>
+
+<div class="dd-head">
+  <span class="tag {{ h.surface }}">{{ h.surface_label }}</span>
+  <span>{{ h.tournament }}</span><span class="sep">·</span>
+  <span>{{ h.tier }}</span><span class="sep">·</span>
+  <span>{{ h.round }}</span><span class="sep">·</span>
+  <span>{{ h.city }}, {{ h.country }}</span><span class="sep">·</span>
+  <span>best-of-{{ h.best_of }}</span><span class="sep">·</span>
+  <span class="mono">{{ h.starts_in }}</span>
+</div>
+
+<div class="dd-title">
+  <div class="pl">
+    <span class="nm">{{ h.a.name }}</span>
+    <span class="sub">{{ h.a.country }} · #{{ h.a.rank }} · {{ 'left' if h.a.hand=='L' else 'right' }}-handed</span>
+  </div>
+  <div class="vs-badge">VS</div>
+  <div class="pl right">
+    <span class="nm">{{ h.b.name }}</span>
+    <span class="sub">#{{ h.b.rank }} · {{ h.b.country }} · {{ 'left' if h.b.hand=='L' else 'right' }}-handed</span>
+  </div>
+</div>
+
+<!-- Verdict block (awaiting until M6; edge meter renders model-vs-market) -->
+<div class="panel full" style="margin-top:18px">
+  <h3>Verdict <span class="k">synthesize</span></h3>
+  {% if p.verdict %}
+  <div class="verdict">
+    <div class="call"><div class="big chip {{ p.verdict.call|lower }}">{{ p.verdict.call }}</div></div>
+    <div class="thesis">{{ p.verdict.thesis }}</div>
+  </div>
+  {% else %}
+  <div class="verdict awaiting">
+    <div class="call"><div class="big">WATCH</div><div class="faint" style="font-size:11px">awaiting model</div></div>
+    <div class="thesis muted">The verdict node (LLM over the deterministic signals below) is wired in a
+      later milestone. For now the page shows the raw, explainable inputs a verdict would cite —
+      fatigue, the live intel feed, and cross-venue prices.</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Fatigue: the signature module -->
+<div class="panel full" style="margin-top:16px">
+  <h3>Match readiness — fatigue &amp; scheduling <span class="k">1.1</span></h3>
+  <p class="hint">Deterministic load score from real court time, deciders, rest and travel.
+     No model, no vibes — every point is traceable to a match.</p>
+  <div class="two">
+    <div><div class="who">{{ h.a.short }}</div>{{ gauge(p.fatigue.a) }}</div>
+    <div><div class="who">{{ h.b.short }}</div>{{ gauge(p.fatigue.b) }}</div>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- Live intel feed -->
+  <div class="panel">
+    <h3>Live intel feed <span class="k">1.4</span></h3>
+    <p class="hint">Factual signals only — withdrawals, niggles, practice reports. No sentiment.
+       Each item is sourced &amp; timestamped.</p>
+    <div class="feed">
+      {% for it in p.feed %}
+      <div class="it">
+        <span class="sig {{ it.signal_type }}">{{ it.signal_type }}</span>
+        <div>
+          <div class="claim">{{ it.claim }}</div>
+          <div class="src">
+            {% if it.player %}<span>{{ it.player }}</span>·{% endif %}
+            <span>{{ it.source }}</span>
+            <span class="lang">{{ it.source_lang }}</span>
+            {% if it.status == 'unconfirmed' %}<span class="lang unconf">unconfirmed</span>{% endif %}
+            <span class="conf" title="confidence {{ (it.confidence*100)|round|int }}%">
+              {% for i in range(5) %}<i class="{{ 'on' if i < (it.confidence*5)|round(0,'common')|int else '' }}"></i>{% endfor %}
+            </span>
+          </div>
+        </div>
+        <span class="when">{{ it.when }}</span>
+      </div>
+      {% else %}
+      <div class="faint" style="padding:12px 0">No intel yet for this matchup.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Cross-venue prices (raw; devig/edge in M3) -->
+  <div class="panel">
+    <h3>Cross-venue prices <span class="k">1.6</span></h3>
+    <p class="hint">Sportsbooks + prediction market, side by side. No-vig fair odds &amp; edge land in M3.</p>
+    <table class="ptable">
+      <thead><tr><th>Venue</th><th>{{ h.a.short }}</th><th>{{ h.b.short }}</th></tr></thead>
+      <tbody>
+        {% for v in p.prices %}
+        <tr>
+          <td><span class="venue">{{ v.venue }} <span class="vtype">{{ v.venue_type }}</span></span></td>
+          <td>{{ '%.2f'|format(v.a.price) if v.a else '—' }}</td>
+          <td>{{ '%.2f'|format(v.b.price) if v.b else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% set rr = (p.prices | selectattr('resolution_rule') | map(attribute='resolution_rule') | list) %}
+    {% if rr %}<div class="rule"><b>Resolution:</b> {{ rr[0] }}</div>{% endif %}
+  </div>
+</div>
+
+<!-- Signals ticker (server-rendered now; live SSE in M4) -->
+<div class="ticker" id="ticker">
+  <span class="label">Signals</span>
+  <div class="stream">
+    {% for it in p.feed[:4] %}
+    <span class="ev"><b>{{ it.player or it.source }}</b> — {{ it.claim[:64] }}{% if it.claim|length > 64 %}…{% endif %} <span class="faint">{{ it.when }}</span></span>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.__MATCH_ID__ = {{ h.match_id }};</script>
+{% endblock %}

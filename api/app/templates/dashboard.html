@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Baseline — Your matchups{% endblock %}
+
+{% macro verdict_chip(v) %}
+  {% set call = v.call if v else 'WATCH' %}
+  <span class="chip {{ call|lower }}">{{ call }}</span>
+{% endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Your matchups</h1>
+    <p>Tennis-deep analysis on the matches you follow — fatigue, cross-venue prices, and the
+       facts moving each line. Graded against the close, not the result.</p>
+  </div>
+  <div class="faint mono" style="font-size:12px">{{ data.count }} followed</div>
+</div>
+
+{% if data.cards %}
+<div class="cards">
+  {% for c in data.cards %}
+  {% set h = c.header %}
+  {% set pm = (c.prices | selectattr('venue','equalto','Polymarket') | list | first) %}
+  <div class="card">
+    <div class="row">
+      <div class="meta">
+        <span class="tag {{ h.surface }}">{{ h.surface_label }}</span>
+        <span>{{ h.tier }} · {{ h.round }}</span>
+      </div>
+      {{ verdict_chip(c.verdict) }}
+    </div>
+
+    <a href="/matchup/{{ h.match_id }}" class="matchup" style="display:block">
+      <div class="vs">
+        <div class="pl">
+          <span class="nm">{{ h.a.short }}</span>
+          <span class="sub">{{ h.a.country }} · #{{ h.a.rank }} · {{ c.fatigue.a.score|round|int }} load</span>
+        </div>
+        <span class="x">vs</span>
+        <div class="pl right">
+          <span class="nm">{{ h.b.short }}</span>
+          <span class="sub">#{{ h.b.rank }} · {{ h.b.country }} · {{ c.fatigue.b.score|round|int }} load</span>
+        </div>
+      </div>
+    </a>
+
+    {% if c.flag %}
+    <div class="flag">
+      <span class="ic">▲</span>
+      <span>Fatigue edge to <b>{{ h.a.short if c.flag.edge_side=='a' else h.b.short }}</b> —
+        {{ c.flag.text }}</span>
+    </div>
+    {% else %}
+    <div class="flag"><span class="faint">No standout fatigue gap · {{ h.starts_in }}</span></div>
+    {% endif %}
+
+    <div class="foot">
+      {% if pm %}
+      <span class="price-hint"><span class="v">PM</span> {{ '%.2f'|format(pm.a.price) }} / {{ '%.2f'|format(pm.b.price) }}
+        <span class="v">· {{ h.starts_in }}</span></span>
+      {% else %}
+      <span class="price-hint faint">prices pending</span>
+      {% endif %}
+      <button class="unsub" title="Unfollow" onclick="unsub({{ c.subscription_id }}, event)">✕</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">You’re not following any matchups yet. Add one below.</div>
+{% endif %}
+
+{% if browse %}
+<div class="page-head" style="margin-top:34px">
+  <div><h1 style="font-size:18px">Add a matchup</h1>
+  <p>Today’s & upcoming card. Following a matchup runs the analysis pipeline and pushes updates as facts land.</p></div>
+</div>
+<div class="add">
+  {% for h in browse %}
+  <div class="opt">
+    <div class="meta">
+      <span class="tag {{ h.surface }}">{{ h.surface_label }}</span>
+      <span><b>{{ h.a.short }}</b> vs <b>{{ h.b.short }}</b></span>
+      <span class="faint">· {{ h.tier }} {{ h.round }} · {{ h.starts_in }}</span>
+    </div>
+    <button class="btn" onclick="follow({{ h.match_id }}, this)">+ Follow</button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
