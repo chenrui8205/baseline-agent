@@ -68,6 +68,10 @@ class Match(Base):
     retired_flag: Mapped[bool] = mapped_column(Boolean, default=False)
     retired_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("players.id"), nullable=True)
 
+    # Live (real) match ingested from Polymarket — distinguishes real data from the seeded demo.
+    is_real: Mapped[bool] = mapped_column(Boolean, default=False)
+    pm_slug: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+
     tournament: Mapped[Tournament] = relationship(lazy="joined")
     player_a: Mapped[Player] = relationship(foreign_keys=[player_a_id], lazy="joined")
     player_b: Mapped[Player] = relationship(foreign_keys=[player_b_id], lazy="joined")

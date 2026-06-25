@@ -12,7 +12,8 @@ from .config import get_settings
 from .engines.fatigue import load_profile_for
 from .models import Match, PressItem, Subscription, VenuePrice
 
-SURFACE_LABEL = {"grass": "Grass", "clay": "Clay", "hard": "Hard", "indoor": "Indoor"}
+SURFACE_LABEL = {"grass": "Grass", "clay": "Clay", "hard": "Hard", "indoor": "Indoor",
+                 "unknown": "Surface n/a"}
 
 
 def _player(p) -> dict:
@@ -53,8 +54,21 @@ def _header(m, now) -> dict:
         city=m.tournament.city, country=m.tournament.country,
         round=m.round, surface=m.surface, surface_label=SURFACE_LABEL.get(m.surface, m.surface.title()),
         indoor=m.tournament.indoor, best_of=m.best_of, status=m.status,
+        is_real=m.is_real, pm_slug=m.pm_slug,
         scheduled_at=m.scheduled_at.isoformat(), starts_in=_rel_time(m.scheduled_at, now),
     )
+
+
+# fatigue needs recent match durations. The seeded card has them; a live-ingested match
+# does not (no free real-time feed) -- so we mark it unavailable rather than fake a 0.
+FATIGUE_UNAVAILABLE = ("Live match-data feed not wired in V0 — the load score needs recent "
+                       "match durations, which have no free real-time source.")
+
+
+def _fatigue_block(db, m, player_id: int, now) -> dict:
+    if m.is_real:
+        return dict(available=False, reason=FATIGUE_UNAVAILABLE)
+    return dict(available=True, **_fatigue_payload(load_profile_for(db, m, player_id, now)))
 
 
 def _feed_for(db, m, now, limit=20) -> list[dict]:
@@ -94,12 +108,11 @@ def analysis_payload(db, match_id: int, now: datetime | None = None) -> dict | N
     m = db.get(Match, match_id)
     if m is None:
         return None
-    fa = load_profile_for(db, m, m.player_a_id, now)
-    fb = load_profile_for(db, m, m.player_b_id, now)
     return dict(
         header=_header(m, now),
         verdict=None,                       # M6
-        fatigue=dict(a=_fatigue_payload(fa), b=_fatigue_payload(fb)),
+        fatigue=dict(a=_fatigue_block(db, m, m.player_a_id, now),
+                     b=_fatigue_block(db, m, m.player_b_id, now)),
         feed=_feed_for(db, m, now),
         prices=_prices_latest(db, m),       # devig/edge layered in M3
         generated_at=now.isoformat(),
@@ -128,15 +141,20 @@ def dashboard_data(db, user_id: str, now: datetime | None = None) -> dict:
         m = db.get(Match, sub.match_id)
         if m is None:
             continue
-        fa = load_profile_for(db, m, m.player_a_id, now)
-        fb = load_profile_for(db, m, m.player_b_id, now)
+        if m.is_real:
+            fatigue, flag = None, None
+        else:
+            fa = load_profile_for(db, m, m.player_a_id, now)
+            fb = load_profile_for(db, m, m.player_b_id, now)
+            fatigue = dict(a=dict(score=fa.score, band=fa.band), b=dict(score=fb.score, band=fb.band))
+            flag = _fatigue_flag(fa, fb)
         cards.append(dict(
             subscription_id=sub.id,
             header=_header(m, now),
             verdict=None,                   # M6 -> WATCH placeholder in UI
-            fatigue=dict(a=dict(score=fa.score, band=fa.band),
-                         b=dict(score=fb.score, band=fb.band)),
-            flag=_fatigue_flag(fa, fb),
+            fatigue=fatigue,
+            flag=flag,
             prices=_prices_latest(db, m),
         ))
+    cards.sort(key=lambda c: (not c["header"]["is_real"], c["header"]["scheduled_at"]))  # live first
     return dict(user_id=user_id, count=len(cards), cards=cards, generated_at=now.isoformat())

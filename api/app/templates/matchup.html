@@ -3,6 +3,13 @@
 {% block title %}{{ h.a.short }} vs {{ h.b.short }} — Baseline{% endblock %}
 
 {% macro gauge(g) %}
+  {% if not g.available %}
+  <div class="gauge unavailable">
+    <div class="top"><span class="score faint">—</span><span class="band faint">No data</span></div>
+    <div class="track flat"></div>
+    <div class="summary faint">{{ g.reason }}</div>
+  </div>
+  {% else %}
   {% set col = 'var(--good)' if g.score < 45 else ('var(--warn)' if g.score < 65 else 'var(--bad)') %}
   <div class="gauge" style="--v: {{ g.score }}">
     <div class="top">
@@ -23,30 +30,40 @@
       {% endfor %}
     </div>
   </div>
+  {% endif %}
 {% endmacro %}
 
 {% block content %}
 <a class="back" href="/">← All matchups</a>
 
+{% macro psub(pl, right=false) -%}
+  {%- set bits = [] -%}
+  {%- if pl.country %}{% set _ = bits.append(pl.country) %}{% endif -%}
+  {%- if pl.rank and pl.rank > 0 %}{% set _ = bits.append('#' ~ pl.rank) %}{% else %}{% set _ = bits.append('unranked') %}{% endif -%}
+  {%- if pl.hand in ['L','R'] %}{% set _ = bits.append(('left' if pl.hand=='L' else 'right') ~ '-handed') %}{% endif -%}
+  {{ bits | join(' · ') }}
+{%- endmacro %}
+
 <div class="dd-head">
   <span class="tag {{ h.surface }}">{{ h.surface_label }}</span>
+  {% if h.is_real %}<span class="live-badge"><span class="pulse"></span> LIVE · real odds</span>{% endif %}
   <span>{{ h.tournament }}</span><span class="sep">·</span>
-  <span>{{ h.tier }}</span><span class="sep">·</span>
-  <span>{{ h.round }}</span><span class="sep">·</span>
-  <span>{{ h.city }}, {{ h.country }}</span><span class="sep">·</span>
-  <span>best-of-{{ h.best_of }}</span><span class="sep">·</span>
+  <span>{{ h.tier }}</span>
+  {% if h.round and h.round != '—' %}<span class="sep">·</span><span>{{ h.round }}</span>{% endif %}
+  {% if h.city %}<span class="sep">·</span><span>{{ h.city }}, {{ h.country }}</span>{% endif %}
+  <span class="sep">·</span><span>best-of-{{ h.best_of }}</span><span class="sep">·</span>
   <span class="mono">{{ h.starts_in }}</span>
 </div>
 
 <div class="dd-title">
   <div class="pl">
     <span class="nm">{{ h.a.name }}</span>
-    <span class="sub">{{ h.a.country }} · #{{ h.a.rank }} · {{ 'left' if h.a.hand=='L' else 'right' }}-handed</span>
+    <span class="sub">{{ psub(h.a) }}</span>
   </div>
   <div class="vs-badge">VS</div>
   <div class="pl right">
     <span class="nm">{{ h.b.name }}</span>
-    <span class="sub">#{{ h.b.rank }} · {{ h.b.country }} · {{ 'left' if h.b.hand=='L' else 'right' }}-handed</span>
+    <span class="sub">{{ psub(h.b) }}</span>
   </div>
 </div>
 
@@ -104,23 +121,30 @@
         <span class="when">{{ it.when }}</span>
       </div>
       {% else %}
-      <div class="faint" style="padding:12px 0">No intel yet for this matchup.</div>
+      <div class="faint" style="padding:12px 0; line-height:1.5">
+        {% if h.is_real %}No recent press found for either player. ITF-level players get little
+          coverage, and factual extraction needs an <span class="mono">ANTHROPIC_API_KEY</span>.
+          We never fabricate signals — an empty feed is the honest result.
+        {% else %}No intel yet for this matchup.{% endif %}
+      </div>
       {% endfor %}
     </div>
   </div>
 
-  <!-- Cross-venue prices (raw; devig/edge in M3) -->
+  <!-- Cross-venue prices (devig/edge in M3) -->
   <div class="panel">
-    <h3>Cross-venue prices <span class="k">1.6</span></h3>
-    <p class="hint">Sportsbooks + prediction market, side by side. No-vig fair odds &amp; edge land in M3.</p>
+    <h3>Cross-venue prices <span class="k">1.6</span>
+      {% if h.is_real %}<span class="live-badge sm"><span class="pulse"></span> live</span>{% endif %}</h3>
+    <p class="hint">{% if h.is_real %}Real Polymarket prices, fetched live. Books + no-vig fair &amp; edge land in M3.
+       {% else %}Sportsbooks + prediction market, side by side. No-vig fair odds &amp; edge land in M3.{% endif %}</p>
     <table class="ptable">
       <thead><tr><th>Venue</th><th>{{ h.a.short }}</th><th>{{ h.b.short }}</th></tr></thead>
       <tbody>
         {% for v in p.prices %}
         <tr>
           <td><span class="venue">{{ v.venue }} <span class="vtype">{{ v.venue_type }}</span></span></td>
-          <td>{{ '%.2f'|format(v.a.price) if v.a else '—' }}</td>
-          <td>{{ '%.2f'|format(v.b.price) if v.b else '—' }}</td>
+          <td>{% if v.a %}{{ '%.2f'|format(v.a.price) }} <span class="imp">{{ (v.a.implied*100)|round|int }}%</span>{% else %}—{% endif %}</td>
+          <td>{% if v.b %}{{ '%.2f'|format(v.b.price) }} <span class="imp">{{ (v.b.implied*100)|round|int }}%</span>{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -136,6 +160,8 @@
   <div class="stream">
     {% for it in p.feed[:4] %}
     <span class="ev"><b>{{ it.player or it.source }}</b> — {{ it.claim[:64] }}{% if it.claim|length > 64 %}…{% endif %} <span class="faint">{{ it.when }}</span></span>
+    {% else %}
+    <span class="ev faint">No new signals on the wire — live updates stream here (SSE in M4).</span>
     {% endfor %}
   </div>
 </div>

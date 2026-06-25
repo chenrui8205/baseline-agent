@@ -21,11 +21,12 @@
   {% for c in data.cards %}
   {% set h = c.header %}
   {% set pm = (c.prices | selectattr('venue','equalto','Polymarket') | list | first) %}
-  <div class="card">
+  <div class="card{{ ' live' if h.is_real }}">
     <div class="row">
       <div class="meta">
         <span class="tag {{ h.surface }}">{{ h.surface_label }}</span>
-        <span>{{ h.tier }} · {{ h.round }}</span>
+        {% if h.is_real %}<span class="live-badge sm"><span class="pulse"></span> LIVE</span>
+        {% else %}<span>{{ h.tier }} · {{ h.round }}</span>{% endif %}
       </div>
       {{ verdict_chip(c.verdict) }}
     </div>
@@ -34,12 +35,12 @@
       <div class="vs">
         <div class="pl">
           <span class="nm">{{ h.a.short }}</span>
-          <span class="sub">{{ h.a.country }} · #{{ h.a.rank }} · {{ c.fatigue.a.score|round|int }} load</span>
+          <span class="sub">{{ h.a.country or h.tier }}{% if c.fatigue %} · {{ c.fatigue.a.score|round|int }} load{% endif %}</span>
         </div>
         <span class="x">vs</span>
         <div class="pl right">
           <span class="nm">{{ h.b.short }}</span>
-          <span class="sub">#{{ h.b.rank }} · {{ h.b.country }} · {{ c.fatigue.b.score|round|int }} load</span>
+          <span class="sub">{% if c.fatigue %}{{ c.fatigue.b.score|round|int }} load · {% endif %}{{ h.b.country or h.tier }}</span>
         </div>
       </div>
     </a>
@@ -50,6 +51,9 @@
       <span>Fatigue edge to <b>{{ h.a.short if c.flag.edge_side=='a' else h.b.short }}</b> —
         {{ c.flag.text }}</span>
     </div>
+    {% elif h.is_real %}
+    <div class="flag"><span class="ic" style="color:var(--grass)">●</span>
+      <span>Real Polymarket market · fatigue needs a live stats feed</span></div>
     {% else %}
     <div class="flag"><span class="faint">No standout fatigue gap · {{ h.starts_in }}</span></div>
     {% endif %}

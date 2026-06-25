@@ -94,6 +94,19 @@ h1, h2, h3, .display { font-family: var(--display); letter-spacing: -.01em; font
 .tag.clay  { color: var(--clay);  background: rgba(208,138,74,.10); border-color: rgba(208,138,74,.25); }
 .tag.hard  { color: var(--hard);  background: rgba(74,159,224,.10); border-color: rgba(74,159,224,.25); }
 .tag.indoor{ color: var(--indoor);background: rgba(155,123,240,.10);border-color: rgba(155,123,240,.25); }
+.tag.unknown { color: var(--faint); background: rgba(138,160,176,.08); border-color: var(--line); }
+
+/* LIVE (real data) badge */
+.live-badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono);
+  font-size: 11px; letter-spacing: .06em; color: var(--grass); border: 1px solid rgba(91,189,122,.35);
+  background: rgba(91,189,122,.08); border-radius: 999px; padding: 3px 9px; text-transform: uppercase; }
+.live-badge.sm { font-size: 10px; padding: 2px 7px; }
+.live-badge .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--grass);
+  box-shadow: 0 0 8px var(--grass); animation: pulse 2s infinite; }
+.card.live { border-color: rgba(91,189,122,.30); }
+.imp { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+.gauge.unavailable .track.flat { background: var(--ink-3); }
+.gauge.unavailable .track.flat::after { display: none; }
 
 .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--display);
   font-weight: 600; font-size: 12.5px; letter-spacing: .06em; padding: 4px 10px; border-radius: 7px; }

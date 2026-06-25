@@ -23,12 +23,26 @@ multilingual press at scale, CLV track record, LangGraph/Celery/Redis/pgvector/W
 |---|-----------|--------|
 | M0 | Scaffold + data model + seed (grass-season demo card) | ✅ |
 | M1 | **Fatigue/Scheduling Engine** end-to-end + load gauges + tests | ✅ |
+| LIVE | **One fully-real match**: live Polymarket odds + GDELT news, honest gaps | ✅ |
 | M2 | Player form & surface splits | ▢ next |
-| M3 | Cross-venue pricing: no-vig fair odds, edge %, edge meter | ▢ (raw prices already shown) |
+| M3 | Cross-venue pricing: no-vig fair odds, edge %, edge meter | ◑ raw + implied % shown |
 | M4 | Line-movement poller + live "what changed" ticker (SSE) | ▢ (ticker is static for now) |
-| M5 | Factual intel feed: live news/official extraction (Haiku) | ▢ (seeded press already shown) |
+| M5 | Factual intel feed: live news/official extraction (Haiku) | ◑ GDELT wired; needs LLM key |
 | M6 | `synthesize_verdict` (Opus) → BET/LEAN/PASS/WATCH + cited thesis | ▢ (placeholder block) |
 | M7 | Polish: responsive, reduced-motion, age + responsible-gambling gate | ◑ gating done |
+
+### The live match
+
+`./run.sh` ingests **one real match** from Polymarket alongside the seeded demo (it shows on
+the dashboard with a green **LIVE** badge). It carries **real, live prediction-market odds**.
+Because it's the gap between Roland Garros and Wimbledon, the only real H2H markets are
+ITF-level — so the news feed is honestly sparse (ITF players get little press) and fatigue is
+marked **unavailable** (no free real-time match-data feed). We never fake these. Refresh the
+real odds any time:
+
+```bash
+PYTHONPATH=api .venv/bin/python -m app.live    # re-fetch live odds + news for the featured match
+```
 
 ## Run
 
